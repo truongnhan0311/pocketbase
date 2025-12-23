@@ -309,6 +309,44 @@ func baseBinds(vm *goja.Runtime) {
 		return string(bodyBytes), nil
 	})
 
+	// note: throw only on reader error
+	vm.Set("toBytes", func(raw any, maxReaderBytes int) ([]byte, error) {
+		switch v := raw.(type) {
+		case nil:
+			return []byte{}, nil
+		case string:
+			return []byte(v), nil
+		case []byte:
+			return v, nil
+		case types.JSONRaw:
+			return v, nil
+		case io.Reader:
+			if maxReaderBytes == 0 {
+				maxReaderBytes = router.DefaultMaxMemory
+			}
+
+			limitReader := io.LimitReader(v, int64(maxReaderBytes))
+
+			return io.ReadAll(limitReader)
+		default:
+			b, err := cast.ToUint8SliceE(v)
+			if err == nil {
+				return b, nil
+			}
+
+			str, err := cast.ToStringE(v)
+			if err == nil {
+				return []byte(str), nil
+			}
+
+			// as a last attempt try to json encode the value
+			rawBytes, _ := json.Marshal(raw)
+
+			return rawBytes, nil
+		}
+	})
+
+	// note: throw only on reader error
 	vm.Set("toString", func(raw any, maxReaderBytes int) (string, error) {
 		switch v := raw.(type) {
 		case io.Reader:
@@ -391,6 +429,32 @@ func baseBinds(vm *goja.Runtime) {
 		instanceValue.SetPrototype(call.This.Prototype())
 
 		return instanceValue
+	})
+
+	// nullable helpers usually used as DynamicModel shape values
+	vm.Set("nullString", func() *string {
+		var v string
+		return &v
+	})
+	vm.Set("nullFloat", func() *float64 {
+		var v float64
+		return &v
+	})
+	vm.Set("nullInt", func() *int64 {
+		var v int64
+		return &v
+	})
+	vm.Set("nullBool", func() *bool {
+		var v bool
+		return &v
+	})
+	vm.Set("nullArray", func() *types.JSONArray[any] {
+		var v types.JSONArray[any]
+		return &v
+	})
+	vm.Set("nullObject", func() *types.JSONMap[any] {
+		var v types.JSONMap[any]
+		return &v
 	})
 
 	vm.Set("Record", func(call goja.ConstructorCall) *goja.Object {
@@ -625,6 +689,7 @@ func mailsBinds(vm *goja.Runtime) {
 	obj.Set("sendRecordVerification", mails.SendRecordVerification)
 	obj.Set("sendRecordChangeEmail", mails.SendRecordChangeEmail)
 	obj.Set("sendRecordOTP", mails.SendRecordOTP)
+	obj.Set("sendRecordAuthAlert", mails.SendRecordAuthAlert)
 }
 
 func securityBinds(vm *goja.Runtime) {
@@ -732,6 +797,8 @@ func osBinds(vm *goja.Runtime) {
 	obj.Set("rename", os.Rename)
 	obj.Set("remove", os.Remove)
 	obj.Set("removeAll", os.RemoveAll)
+	obj.Set("openRoot", os.OpenRoot)
+	obj.Set("openInRoot", os.OpenInRoot)
 }
 
 func formsBinds(vm *goja.Runtime) {
@@ -1059,12 +1126,19 @@ var cachedDynamicModelStructs = store.New[string, reflect.Type](nil)
 // on the specified "shape".
 //
 // The "shape" values are used as defaults and could be of type:
-// - int (ex. 0)
-// - float (ex. -0)
-// - string (ex. "")
-// - bool (ex. false)
-// - slice (ex. [])
-// - map (ex. map[string]any{})
+//
+//   - int64      (ex.: 0)
+//   - *int64     (ex.: nullInt())
+//   - float64    (ex.: -0)
+//   - *float64   (ex.: nullFloat())
+//   - string     (ex.: "")
+//   - *string    (ex.: nullString())
+//   - bool       (ex.: false)
+//   - *bool      (ex.: nullBool())
+//   - slice/arr  (ex.: [])
+//   - *slice/arr (ex.: nullArray())
+//   - map        (ex.: {})
+//   - *map       (ex.: nullObject())
 //
 // Example:
 //
@@ -1100,6 +1174,9 @@ func newDynamicModel(shape map[string]any) any {
 			newV.Scan(raw)
 			v = newV
 			vt = reflect.TypeOf(newV)
+		case reflect.Pointer:
+			// for pointers always fallback to nil as their default value
+			v = nil
 		}
 
 		hash.WriteString(k)
@@ -1128,6 +1205,9 @@ func newDynamicModel(shape map[string]any) any {
 
 	// load default values into the new model
 	for i, item := range info {
+		if item.value == nil {
+			continue
+		}
 		elem.Field(i).Set(reflect.ValueOf(item.value))
 	}
 

@@ -157,8 +157,6 @@ declare var $app: PocketBase
  * ).render({"name": "John"})
  * ` + "```" + `
  *
- * _Note that this method is available only in pb_hooks context._
- *
  * @namespace
  * @group PocketBase
  */
@@ -186,13 +184,45 @@ declare function readerToString(reader: any, maxBytes?: number): string;
  * // io.Reader
  * const ex1 = toString(e.request.body)
  *
- * // slice of bytes ("hello")
- * const ex2 = toString([104 101 108 108 111])
+ * // slice of bytes
+ * const ex2 = toString([104 101 108 108 111]) // "hello"
+ *
+ * // null
+ * const ex3 = toString(null) // ""
  * ` + "```" + `
  *
  * @group PocketBase
  */
 declare function toString(val: any, maxBytes?: number): string;
+
+/**
+ * toBytes converts the specified value into a bytes slice.
+ *
+ * Support optional second maxBytes argument to limit the max read bytes
+ * when the value is a io.Reader (default to 32MB).
+ *
+ * Types that don't have Go slice representation (bool, objects, etc.)
+ * are serialized to UTF8 string and its bytes slice is returned.
+ *
+ * Example:
+ *
+ * ` + "```" + `js
+ * // io.Reader
+ * const ex1 = toBytes(e.request.body)
+ *
+ * // string
+ * const ex2 = toBytes("hello") // [104 101 108 108 111]
+ *
+ * // object (the same as the string '{"test":1}')
+ * const ex3 = toBytes({"test":1}) // [123 34 116 101 115 116 34 58 49 125]
+ *
+ * // null
+ * const ex4 = toBytes(null) // []
+ * ` + "```" + `
+ *
+ * @group PocketBase
+ */
+declare function toBytes(val: any, maxBytes?: number): Array<number>;
 
 /**
  * sleep pauses the current goroutine for at least the specified user duration (in ms).
@@ -227,26 +257,79 @@ declare function arrayOf<T>(model: T): Array<T>;
 /**
  * DynamicModel creates a new dynamic model with fields from the provided data shape.
  *
- * Note that in order to use 0 as double/float initialization number you have to use negative zero (` + "`-0`" + `).
+ * Caveats:
+ * - In order to use 0 as double/float initialization number you have to negate it (` + "`-0`" + `).
+ * - You need to use lowerCamelCase when accessing the model fields (e.g. ` + "`model.roles`" + ` and not ` + "`model.Roles`" + ` even if in the model shape and in the DB table the column is capitalized).
+ * - Objects are loaded into types.JSONMap, meaning that they need to be accessed with ` + "`get(key)`" + ` (e.g. ` + "`model.meta.get('something')`" + `).
+ * - For describing nullable types you can use the ` + "`null*()`" + ` helpers - ` + "`nullString()`" + `, ` + "`nullInt()`" + `, ` + "`nullFloat()`" + `, ` + "`nullBool()`" + `, ` + "`nullArray()`" + `, ` + "`nullObject()`" + `.
  *
  * Example:
  *
  * ` + "```" + `js
  * const model = new DynamicModel({
- *     name:       ""
- *     age:        0,  // int64
- *     totalSpent: -0, // float64
- *     active:     false,
- *     roles:      [],
- *     meta:       {}
+ *     name:       ""     // or nullString() if nullable
+ *     age:        0,     // or nullInt() if nullable
+ *     totalSpent: -0,    // or nullFloat() if nullable
+ *     active:     false, // or nullBool() if nullable
+ *     Roles:      [],    // or nullArray() if nullable; maps to "Roles" in the DB/JSON but the prop would be accessible via "model.roles"
+ *     meta:       {},    // or nullObject() if nullable
  * })
  * ` + "```" + `
  *
  * @group PocketBase
  */
 declare class DynamicModel {
+  [key: string]: any;
   constructor(shape?: { [key:string]: any })
 }
+
+/**
+ * nullString creates an empty Go string pointer usually used for
+ * describing a **nullable** ` + "`DynamicModel`" + ` string value.
+ *
+ * @group PocketBase
+ */
+declare function nullString(): string;
+
+/**
+ * nullInt creates an empty Go int64 pointer usually used for
+ * describing a **nullable** ` + "`DynamicModel`" + ` int value.
+ *
+ * @group PocketBase
+ */
+declare function nullInt(): number;
+
+/**
+ * nullFloat creates an empty Go float64 pointer usually used for
+ * describing a **nullable** ` + "`DynamicModel`" + ` float value.
+ *
+ * @group PocketBase
+ */
+declare function nullFloat(): number;
+
+/**
+ * nullBool creates an empty Go bool pointer usually used for
+ * describing a **nullable** ` + "`DynamicModel`" + ` bool value.
+ *
+ * @group PocketBase
+ */
+declare function nullBool(): boolean;
+
+/**
+ * nullArray creates an empty Go types.JSONArray pointer usually used for
+ * describing a **nullable** ` + "`DynamicModel`" + ` JSON array value.
+ *
+ * @group PocketBase
+ */
+declare function nullArray(): Array<any>;
+
+/**
+ * nullObject creates an empty Go types.JSONMap pointer usually used for
+ * describing a **nullable** ` + "`DynamicModel`" + ` JSON object value.
+ *
+ * @group PocketBase
+ */
+declare function nullObject(): { get(key:string):any; set(key:string,value:any):void };
 
 interface Context extends context.Context{} // merge
 /**
@@ -756,6 +839,7 @@ declare namespace $mails {
   let sendRecordVerification:  mails.sendRecordVerification
   let sendRecordChangeEmail:   mails.sendRecordChangeEmail
   let sendRecordOTP:           mails.sendRecordOTP
+  let sendRecordAuthAlert:     mails.sendRecordAuthAlert
 }
 
 // -------------------------------------------------------------------
@@ -895,21 +979,23 @@ declare namespace $os {
    */
   export let args: Array<string>
 
-  export let exit:      os.exit
-  export let getenv:    os.getenv
-  export let dirFS:     os.dirFS
-  export let readFile:  os.readFile
-  export let writeFile: os.writeFile
-  export let stat:      os.stat
-  export let readDir:   os.readDir
-  export let tempDir:   os.tempDir
-  export let truncate:  os.truncate
-  export let getwd:     os.getwd
-  export let mkdir:     os.mkdir
-  export let mkdirAll:  os.mkdirAll
-  export let rename:    os.rename
-  export let remove:    os.remove
-  export let removeAll: os.removeAll
+  export let exit:       os.exit
+  export let getenv:     os.getenv
+  export let dirFS:      os.dirFS
+  export let readFile:   os.readFile
+  export let writeFile:  os.writeFile
+  export let stat:       os.stat
+  export let readDir:    os.readDir
+  export let tempDir:    os.tempDir
+  export let truncate:   os.truncate
+  export let getwd:      os.getwd
+  export let mkdir:      os.mkdir
+  export let mkdirAll:   os.mkdirAll
+  export let rename:     os.rename
+  export let remove:     os.remove
+  export let removeAll:  os.removeAll
+  export let openRoot:   os.openRoot
+  export let openInRoot: os.openInRoot
 }
 
 // -------------------------------------------------------------------

@@ -184,7 +184,13 @@ func (p *plugin) registerMigrations() error {
 		return err
 	}
 
+	absHooksDir, err := filepath.Abs(p.config.HooksDir)
+	if err != nil {
+		return err
+	}
+
 	registry := new(require.Registry) // this can be shared by multiple runtimes
+	templateRegistry := template.NewRegistry()
 
 	for file, content := range files {
 		vm := goja.New()
@@ -200,6 +206,12 @@ func (p *plugin) registerMigrations() error {
 		osBinds(vm)
 		filepathBinds(vm)
 		httpClientBinds(vm)
+		filesystemBinds(vm)
+		formsBinds(vm)
+		mailsBinds(vm)
+
+		vm.Set("$template", templateRegistry)
+		vm.Set("__hooks", absHooksDir)
 
 		vm.Set("migrate", func(up, down func(txApp core.App) error) {
 			core.AppMigrations.Register(up, down, file)
@@ -365,7 +377,7 @@ func (p *plugin) watchHooks() error {
 	if hooksDirInfo.Mode()&os.ModeSymlink == os.ModeSymlink {
 		watchDir, err = filepath.EvalSymlinks(p.config.HooksDir)
 		if err != nil {
-			return fmt.Errorf("failed to resolve hooksDir symink: %w", err)
+			return fmt.Errorf("failed to resolve hooksDir symlink: %w", err)
 		}
 	}
 
