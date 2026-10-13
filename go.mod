@@ -1,4 +1,4 @@
-module github.com/truongnhan0311/pocketbase
+module github.com/pocketbase/pocketbase
 
 go 1.27
 

@@ -1,0 +1,27 @@
+.page-extdb .extdb-sidebar .sidebar-search + .sidebar-search {
+    padding-top: 0;
+}
+.page-extdb .extdb-sidebar .nav-item .extdb-editable-icon {
+    margin-left: auto;
+    opacity: 0.5;
+    font-size: 0.9em;
+}
+.page-extdb .extdb-searchbar {
+    min-width: 280px;
+}
+.page-extdb .extdb-table td {
+    max-width: 320px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.page-extdb .extdb-table tbody tr.row-handle {
+    cursor: pointer;
+}
+.extdb-record-modal .field textarea {
+    font-family: var(--monospaceFontFamily, monospace);
+}
+.extdb-record-modal .extdb-null-toggle {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}

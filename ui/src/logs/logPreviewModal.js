@@ -1,3 +1,4 @@
+import { logsApi } from "@/extdb/extdbLogsApi";
 import { logLevel } from "./logLevel";
 
 window.app = window.app || {};
@@ -8,6 +9,7 @@ window.app.modals.openLogPreview = function(logIdOrModel, settings = {
     onafteropen: null,
     onbeforeclose: null,
     onafterclose: null,
+    source: "", // extdb logs source (empty for the PocketBase logs)
 }) {
     const modal = logPreviewModal(logIdOrModel, settings);
     if (!modal) {
@@ -78,10 +80,11 @@ function logPreviewModal(logIdOrModel, settings) {
         data.isLoading = true;
 
         try {
-            if (app.utils.isObject(logIdOrModel)) {
+            if (app.utils.isObject(logIdOrModel) && !settings.source) {
                 data.log = JSON.parse(JSON.stringify(logIdOrModel));
             } else {
-                data.log = await app.pb.logs.getOne(logIdOrModel, {
+                // the extdb list items have truncated responses so the full log is always fetched
+                data.log = await logsApi(settings.source).getOne(logIdOrModel?.id || logIdOrModel, {
                     requestKey: "log_preview",
                 });
             }

@@ -1,0 +1,16 @@
+{
+  "databases": [
+    {
+      "name": "main",
+      "path": "familylinkdb",
+      "editableTables": ["admin_role", "family_plan", "config"],
+      "deletableTables": ["admin_role"]
+    },
+    { "name": "ai", "path": "familylinkdb_ai", "editableTables": ["*"] },
+    { "name": "token", "path": "familylinkdb_token", "readonly": true },
+    { "name": "messages", "path": "familylinkdb_messages", "readonly": true },
+    { "name": "transactions", "path": "familylinkdb_transactions", "readonly": true },
+    { "name": "logs", "path": "familylinkdb_logs", "readonly": true }
+  ],
+  "logs": [{ "name": "familylink", "label": "Familylink", "database": "logs", "table": "system_logs" }]
+}

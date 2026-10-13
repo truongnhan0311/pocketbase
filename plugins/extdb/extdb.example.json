@@ -1,0 +1,24 @@
+{
+  "baseDir": "${FAMILYLINK_DB_DIR}",
+  "hook": {
+    "url": "https://api.welinked.ai/v1/admin/extdb/hook",
+    "secret": "change-me",
+    "headers": { "api-key": "<admin api key of the main server>" },
+    "timeoutSeconds": 10
+  },
+  "databases": [
+    {
+      "name": "main",
+      "path": "familylinkdb",
+      "editableTables": ["admin_role", "family_plan", "config"],
+      "deletableTables": ["admin_role"]
+    },
+    { "name": "ai", "path": "familylinkdb_ai", "readonly": true },
+    { "name": "token", "path": "familylinkdb_token", "readonly": true },
+    { "name": "messages", "path": "familylinkdb_messages", "readonly": true },
+    { "name": "transactions", "path": "familylinkdb_transactions", "readonly": true },
+    { "name": "knowledge", "path": "familylinkdb_knowledge", "readonly": true },
+    { "name": "logs", "path": "familylinkdb_logs", "readonly": true }
+  ],
+  "logs": [{ "name": "familylink", "label": "Familylink", "database": "logs", "table": "system_logs" }]
+}

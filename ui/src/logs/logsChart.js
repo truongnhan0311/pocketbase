@@ -1,3 +1,5 @@
+import { logsApi } from "@/extdb/extdbLogsApi";
+
 function getChartHeight() {
     return document.body.clientWidth > 600 && document.body.clientHeight >= 720 ? 150 : 100;
 }
@@ -29,7 +31,7 @@ export function logsChart(logsSettings) {
                 }
             }, 250);
 
-            const stats = await app.pb.logs.getStats({
+            const stats = await logsApi(logsSettings.source).getStats({
                 filter: normalizedFilter
                     .filter(Boolean)
                     .map((f) => "(" + f + ")")

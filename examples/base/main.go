@@ -9,6 +9,7 @@ import (
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/plugins/extdb"
 	"github.com/pocketbase/pocketbase/plugins/ghupdate"
 	"github.com/pocketbase/pocketbase/plugins/jsvm"
 	"github.com/pocketbase/pocketbase/plugins/migratecmd"
@@ -79,6 +80,22 @@ func main() {
 		"fallback the request to index.html on missing static path, e.g. when pretty urls are used with SPA",
 	)
 
+	var extdbConfig string
+	app.RootCmd.PersistentFlags().StringVar(
+		&extdbConfig,
+		"extdb",
+		os.Getenv("PB_EXTDB_CONFIG"),
+		"the JSON config file with the external SQLite databases managed from the dashboard (env PB_EXTDB_CONFIG)",
+	)
+
+	var extdbDir string
+	app.RootCmd.PersistentFlags().StringVar(
+		&extdbDir,
+		"extdbDir",
+		os.Getenv("PB_EXTDB_DIR"),
+		"the base directory for the relative external database paths (env PB_EXTDB_DIR, default the --extdb config file directory)",
+	)
+
 	app.RootCmd.ParseFlags(os.Args[1:])
 
 	// ---------------------------------------------------------------
@@ -102,6 +119,11 @@ func main() {
 
 	// GitHub selfupdate
 	ghupdate.MustRegister(app, app.RootCmd, ghupdate.Config{})
+
+	// external SQLite databases (browse/edit/delete from the dashboard + main server hook)
+	if extdbConfig != "" {
+		extdb.MustRegister(app, extdb.Config{ConfigFile: extdbConfig, BaseDir: extdbDir})
+	}
 
 	// static route to serves files from the provided public dir
 	// (if publicDir exists and the route path is not already defined)

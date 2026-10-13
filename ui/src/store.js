@@ -68,6 +68,11 @@ window.app.store = store({
             label: "Logs",
         },
         {
+            href: "#/extdb",
+            icon: "ri-server-line",
+            label: "External DB",
+        },
+        {
             href: "#/settings",
             icon: "ri-settings-3-line",
             label: "Settings",

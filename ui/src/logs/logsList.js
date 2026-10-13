@@ -1,3 +1,4 @@
+import { logsApi } from "@/extdb/extdbLogsApi";
 import { logLevel } from "./logLevel";
 
 const perPage = 50;
@@ -64,7 +65,7 @@ export function logsList(logsSettings) {
                 normalizedFilter.push(`created <= "${loadStartDate}"`);
             }
 
-            const result = await app.pb.logs.getList(page, perPage, {
+            const result = await logsApi(logsSettings.source).getList(page, perPage, {
                 skipTotal: 1,
                 sort: "-@rowid",
                 requestKey: "logs_list",
